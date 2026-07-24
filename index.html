@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vibe coded by pperezmo</title>
+<title>Gestion Camisetas By Acastil2</title>
+<link rel="icon" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT26WrgWm1xr62x5tqSqHPVLKVew_yRoLGKDOn5lxwPX9uUOJZbiAf6Tak&s=10">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap');
 
@@ -660,8 +661,12 @@ function addItemBlock(containerId, priceDisplayId, tipo) {
       <button class="remove-item-btn" onclick="${removeCall}" title="Eliminar">×</button>
       <div class="form-grid-3">
         <div class="fg full" style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div class="fg"><label>Nombre persona</label><input type="text" class="i-persona" placeholder="Ej. Carlos" maxlength="80" list="clientes-datalist"></div>
+          <div class="fg"><label>Nombre persona</label><input type="text" class="i-persona" placeholder="Ej. Carlos" maxlength="80" list="clientes-datalist" oninput="toggleVTWrap(this)"></div>
           <div class="fg"><label>Item</label><input type="text" class="i-item" placeholder="Ej. Granada CF Local" maxlength="100"></div>
+        </div>
+        <div class="fg vt-wrap" style="display:none;grid-column:1/-1;flex-direction:row;align-items:center;gap:8px;">
+          <input type="checkbox" class="i-vendida-terceros" id="vt-${n}" style="width:auto;">
+          <label for="vt-${n}" style="margin:0;">Vendida a terceros</label>
         </div>
         <div class="fg"><label>Versión</label>
           <select class="i-version"><option value="">—</option><option>Fan</option><option>Player</option><option>Retro</option><option>Kids</option><option>Women</option><option>Conjunto</option><option>Chandal</option><option>Zapatilla</option></select>
@@ -691,6 +696,15 @@ function addItemBlock(containerId, priceDisplayId, tipo) {
       </div>`;
   }
   document.getElementById(containerId).appendChild(div);
+}
+
+function toggleVTWrap(input) {
+  const block = input.closest(".item-block");
+  const wrap = block?.querySelector(".vt-wrap");
+  if (!wrap) return;
+  const isAlexYo = input.value.trim().toUpperCase()==="ALEX YO";
+  wrap.style.display = isAlexYo ? "flex" : "none";
+  if (!isAlexYo) { const cb=wrap.querySelector(".i-vendida-terceros"); if (cb) cb.checked=false; }
 }
 
 function duplicateItemBlock(btn) {
@@ -735,7 +749,8 @@ function getItemsFromContainer(containerId) {
       parche: uc(block.querySelector(".i-parche")?.value).slice(0,80),
       precio_venta: parseFloat(block.querySelector(".i-precio")?.value)||0,
       lo_que_pago: parseFloat(block.querySelector(".i-loquepago")?.value)||0,
-      pagado_item: block.querySelector(".i-pagado-item")?.value||"No"
+      pagado_item: block.querySelector(".i-pagado-item")?.value||"No",
+      vendida_terceros: block.querySelector(".i-vendida-terceros")?.checked ? "Si" : "No"
     });
   });
   return items;
@@ -796,7 +811,7 @@ function renderPedidos() {
         const rowClass = eItem ? "entregado-row" : "";
         rowHtml = `<tr class="${rowClass}" data-item-id="${it.id}" data-pedido-id="${p.id}">
         <td class="drag-handle" title="Mantén pulsado para mover">⠿</td>
-        <td class="${pItem?'cell-persona-pagado':''}">${san(it.nombre_persona||"—")}</td>
+        <td class="${pItem?'cell-persona-pagado':''}">${san(it.nombre_persona||"—")}${(it.nombre_persona||"").trim().toUpperCase()==="ALEX YO" ? `<br><button class="pagado-toggle ${esSi(it.vendida_terceros)?'si':'no'}" style="margin-top:4px;font-size:11px;padding:2px 6px;" onclick="toggleVendidaTerceros('${p.id}','${it.id}',this)">Vendida 3º: ${esSi(it.vendida_terceros)?'Sí':'No'}</button>` : ""}</td>
         <td class="${eItem?'cell-item-entregado':''}">${san(it.item||"—")}</td>
         <td>${san(it.version||"—")}</td>
         <td>${san(it.talla||"—")}</td>
@@ -975,6 +990,20 @@ function toggleDetail(id, sid) {
     const tbody = detail.querySelector("tbody");
     if (tbody) initDragDrop(tbody);
   }
+}
+
+async function toggleVendidaTerceros(pedidoId, itemId, btn) {
+  const isNowSi = btn.classList.contains("no");
+  const newVal = isNowSi ? "Si" : "No";
+  try {
+    await sbPatch("items", `id=eq.${encodeURIComponent(itemId)}`, { vendida_terceros: newVal });
+    btn.classList.toggle("si", isNowSi);
+    btn.classList.toggle("no", !isNowSi);
+    btn.textContent = "Vendida 3º: " + (isNowSi ? "Sí" : "No");
+    const p = pedidos.find(x=>x.id===pedidoId);
+    if (p) { const it = (p._items||[]).find(x=>x.id===itemId); if(it) it.vendida_terceros = newVal; }
+    showToast(isNowSi ? "Marcada como vendida a terceros ✓" : "Marcada como no vendida a terceros");
+  } catch(e) { showToast("Error: "+e.message); }
 }
 
 async function togglePagadoItem(pedidoId, itemId, btn) {
@@ -1246,8 +1275,12 @@ function abrirEditar(id) {
         <button class="remove-item-btn" onclick="${removeCall}" title="Eliminar">×</button>
         <div class="form-grid-3">
           <div class="fg full" style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div class="fg"><label>Nombre persona</label><input type="text" class="i-persona" value="${san(it.nombre_persona||"")}" maxlength="80" list="clientes-datalist"></div>
+            <div class="fg"><label>Nombre persona</label><input type="text" class="i-persona" value="${san(it.nombre_persona||"")}" maxlength="80" list="clientes-datalist" oninput="toggleVTWrap(this)"></div>
             <div class="fg"><label>Item</label><input type="text" class="i-item" value="${san(it.item||"")}" maxlength="100"></div>
+          </div>
+          <div class="fg vt-wrap" style="display:${(it.nombre_persona||"").trim().toUpperCase()==="ALEX YO"?"flex":"none"};grid-column:1/-1;flex-direction:row;align-items:center;gap:8px;">
+            <input type="checkbox" class="i-vendida-terceros" id="e-vt-${n}" style="width:auto;" ${esSi(it.vendida_terceros)?"checked":""}>
+            <label for="e-vt-${n}" style="margin:0;">Vendida a terceros</label>
           </div>
           <div class="fg"><label>Versión</label><select class="i-version"><option value="">—</option><option>Fan</option><option>Player</option><option>Retro</option><option>Kids</option><option>Women</option><option>Conjunto</option><option>Chandal</option><option>Zapatilla</option></select></div>
           <div class="fg"><label>Talla</label><input type="text" class="i-talla" value="${san(it.talla||"")}" maxlength="20"></div>
@@ -1307,7 +1340,8 @@ async function actualizarPedido() {
       pedido_id:id,
       posicion:i,
       pagado_item: it.pagado_item || (existingItems[i]?.pagado_item||"No"),
-      entregado_item: it.entregado_item || (existingItems[i]?.entregado_item||"No")
+      entregado_item: it.entregado_item || (existingItems[i]?.entregado_item||"No"),
+      vendida_terceros: it.vendida_terceros || (existingItems[i]?.vendida_terceros||"No")
     })));
     showToast("Pedido actualizado ✓");
     const nombresEdit = tipo==="conjunto" ? items.map(it=>it.nombre_persona) : [nombre];
@@ -1836,7 +1870,7 @@ function descargarBackup() {
   // Build CSV rows
   const rows = [];
   // Header
-  rows.push(["ID","Fecha","Nombre pedido","Tipo","Estado","Pagado","Método pago","Precio total","Nº Seguimiento","Persona","Item","Versión","Talla","Nombre/Nº","Parche","Precio venta","Lo que pago","Pagado item","Entregado item"].join(";"));
+  rows.push(["ID","Fecha","Nombre pedido","Tipo","Estado","Pagado","Método pago","Precio total","Nº Seguimiento","Persona","Item","Versión","Talla","Nombre/Nº","Parche","Precio venta","Lo que pago","Pagado item","Entregado item","Vendida terceros"].join(";"));
 
   pedidos.forEach(p => {
     const items = p._items||[];
@@ -1845,7 +1879,7 @@ function descargarBackup() {
         p.id, p.fecha, p.nombre_cliente, p.tipo||"simple",
         p.estado, p.pagado, p.metodo_pago||"",
         p.precio_total, (p.notas||"").split("\n").join(" | "),
-        "","","","","","","","","",""
+        "","","","","","","","","","",""
       ];
       rows.push(row.map(v=>'"'+String(v||"").replace(/"/g,'""')+'"').join(";"));
     } else {
@@ -1859,7 +1893,7 @@ function descargarBackup() {
           it.item||"", it.version||"", it.talla||"",
           it.nombre_numero||"", it.parche||"",
           it.precio_venta||0, it.lo_que_pago||0,
-          it.pagado_item||"No", it.entregado_item||"No"
+          it.pagado_item||"No", it.entregado_item||"No", it.vendida_terceros||"No"
         ];
         rows.push(row.map(v=>'"'+String(v||"").replace(/"/g,'""')+'"').join(";"));
       });

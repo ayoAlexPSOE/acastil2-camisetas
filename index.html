@@ -647,12 +647,16 @@ function addItemBlock(containerId, priceDisplayId, tipo) {
   const n = ++itemCounter;
   const div = document.createElement("div");
   div.className = "item-block";
+  div.dataset.containerId = containerId;
+  div.dataset.priceId = priceDisplayId;
+  div.dataset.tipo = t;
 
   const removeCall = `this.closest('.item-block').remove();recalcTotal('${priceDisplayId}','${containerId}')`;
 
   if (t === "conjunto") {
     div.innerHTML = `
       <div class="item-block-title">Producto #${n}</div>
+      <button class="remove-item-btn" onclick="duplicateItemBlock(this)" title="Duplicar" style="right:34px;">⧉</button>
       <button class="remove-item-btn" onclick="${removeCall}" title="Eliminar">×</button>
       <div class="form-grid-3">
         <div class="fg full" style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -672,6 +676,7 @@ function addItemBlock(containerId, priceDisplayId, tipo) {
   } else {
     div.innerHTML = `
       <div class="item-block-title">Producto #${n}</div>
+      <button class="remove-item-btn" onclick="duplicateItemBlock(this)" title="Duplicar" style="right:34px;">⧉</button>
       <button class="remove-item-btn" onclick="${removeCall}" title="Eliminar">×</button>
       <div class="form-grid-3">
         <div class="fg full" style="grid-column:1/-1"><label>Item</label><input type="text" class="i-item" placeholder="Ej. Granada CF Local 24/25" maxlength="100"></div>
@@ -686,6 +691,18 @@ function addItemBlock(containerId, priceDisplayId, tipo) {
       </div>`;
   }
   document.getElementById(containerId).appendChild(div);
+}
+
+function duplicateItemBlock(btn) {
+  const block = btn.closest(".item-block");
+  if (!block) return;
+  const clone = block.cloneNode(true);
+  // Los <input>/<select> clonados conservan el valor actual escrito por el usuario
+  block.parentNode.insertBefore(clone, block.nextSibling);
+  clone.style.borderColor = "var(--accent)";
+  setTimeout(()=>{ clone.style.borderColor=""; }, 900);
+  recalcTotal(block.dataset.priceId, block.dataset.containerId);
+  showToast("Producto duplicado, revisa los datos");
 }
 
 function recalcTotal(displayId, containerId) {
